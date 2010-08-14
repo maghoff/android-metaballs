@@ -50,8 +50,28 @@ static const char gVertexShader[] =
 
 static const char gFragmentShader[] = 
     "precision mediump float;\n"
+    "uniform vec2 balls[2];\n"
+    //"float sqr(float x) { return x*x; }\n"
     "void main() {\n"
-    "  gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n"
+//    "  float value = 0;\n"
+    
+    /*
+    "  for (int i=0; i<2; ++i) {\n"
+    "    vec2 v = gl_FragCoord.xy - vec2(x[i], y[i]);\n"
+    "    value += sqr(1/(sqr(v.x) + sqr(v.y)));\n"
+    "  }\n"
+    */
+/*
+    "    vec2 v;\n"
+    "    v = gl_FragCoord.xy - vec2(x[0], y[0]);\n"
+    "    value += sqr(1.0/(sqr(v.x) + sqr(v.y)));\n"
+    "    v = gl_FragCoord.xy - vec2(x[1], y[1]);\n"
+    "    value += sqr(1.0/(sqr(v.x) + sqr(v.y)));\n"
+
+    "  float factor = smoothstep(0, 1, value);\n"*/
+    "  float lol = balls[0].x + balls[0].y + balls[1].x + balls[1].y;\n"
+
+    "  gl_FragColor = vec4(0.0, lol, 1.0, 1.0);\n"
     "}\n";
 
 GLuint loadShader(GLenum shaderType, const char* pSource) {
@@ -121,6 +141,10 @@ GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
 GLuint gProgram;
 GLuint gvPositionHandle;
 
+struct loltype {
+    GLuint x[2], y[2];
+} gVar;
+
 bool setupGraphics(int w, int h) {
     printGLString("Version", GL_VERSION);
     printGLString("Vendor", GL_VENDOR);
@@ -138,6 +162,16 @@ bool setupGraphics(int w, int h) {
     LOGI("glGetAttribLocation(\"vPosition\") = %d\n",
             gvPositionHandle);
 
+    gVar.x[0] = glGetUniformLocation(gProgram, "balls[0].x");
+    checkGlError("glGetUniformLocation");
+    gVar.y[0] = glGetUniformLocation(gProgram, "balls[0].y");
+    checkGlError("glGetUniformLocation");
+
+    gVar.x[1] = glGetUniformLocation(gProgram, "balls[1].x");
+    checkGlError("glGetUniformLocation");
+    gVar.y[1] = glGetUniformLocation(gProgram, "balls[1].y");
+    checkGlError("glGetUniformLocation");
+            
     glViewport(0, 0, w, h);
     checkGlError("glViewport");
     return true;
@@ -146,10 +180,6 @@ bool setupGraphics(int w, int h) {
 const GLfloat gTriangleVertices[] = { 0.0f, 0.5f, -0.5f, -0.5f,
         0.5f, -0.5f };
 
-float fmod(float x, float m) {
-	while (x > m) x -= m;
-	return x;
-}
 
 void renderFrame() {
     static float grey;
@@ -157,7 +187,8 @@ void renderFrame() {
     if (grey > 1.0f) {
         grey = 0.0f;
     }
-    glClearColor(grey, fmod(grey + 0.333, 1.), fmod(grey + 0.666, 1.), 1.0f);
+
+    glClearColor(0, 0, 0, 1.0f);
     checkGlError("glClearColor");
     glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     checkGlError("glClear");
@@ -165,6 +196,15 @@ void renderFrame() {
     glUseProgram(gProgram);
     checkGlError("glUseProgram");
 
+    glUniform1f(gVar.x[0], grey);
+    checkGlError("glUniform1f");
+    glUniform1f(gVar.x[1], grey);
+    checkGlError("glUniform1f");
+    glUniform1f(gVar.y[0], grey);
+    checkGlError("glUniform1f");
+    glUniform1f(gVar.y[1], grey);
+    checkGlError("glUniform1f");
+    
     glVertexAttribPointer(gvPositionHandle, 2, GL_FLOAT, GL_FALSE, 0, gTriangleVertices);
     checkGlError("glVertexAttribPointer");
     glEnableVertexAttribArray(gvPositionHandle);
