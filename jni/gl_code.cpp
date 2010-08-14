@@ -53,23 +53,10 @@ static const char gFragmentShader[] =
     "uniform vec2 balls[2];\n"
     //"float sqr(float x) { return x*x; }\n"
     "void main() {\n"
-//    "  float value = 0;\n"
-    
-    /*
-    "  for (int i=0; i<2; ++i) {\n"
-    "    vec2 v = gl_FragCoord.xy - vec2(x[i], y[i]);\n"
-    "    value += sqr(1/(sqr(v.x) + sqr(v.y)));\n"
-    "  }\n"
-    */
-/*
-    "    vec2 v;\n"
-    "    v = gl_FragCoord.xy - vec2(x[0], y[0]);\n"
-    "    value += sqr(1.0/(sqr(v.x) + sqr(v.y)));\n"
-    "    v = gl_FragCoord.xy - vec2(x[1], y[1]);\n"
-    "    value += sqr(1.0/(sqr(v.x) + sqr(v.y)));\n"
-
-    "  float factor = smoothstep(0, 1, value);\n"*/
     "  float lol = balls[0].x + balls[0].y + balls[1].x + balls[1].y;\n"
+    "  for (int i=0; i<2; ++i) {\n"
+    "    lol += balls[i].x;\n"
+    "  }\n"
 
     "  gl_FragColor = vec4(0.0, lol, 1.0, 1.0);\n"
     "}\n";
@@ -140,9 +127,11 @@ GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
 
 GLuint gProgram;
 GLuint gvPositionHandle;
+float gHalfDim[2];
+const unsigned num_balls = 2;
 
 struct loltype {
-    GLuint x[2], y[2];
+    GLuint balls[num_balls];
 } gVar;
 
 bool setupGraphics(int w, int h) {
@@ -159,33 +148,38 @@ bool setupGraphics(int w, int h) {
     }
     gvPositionHandle = glGetAttribLocation(gProgram, "vPosition");
     checkGlError("glGetAttribLocation");
-    LOGI("glGetAttribLocation(\"vPosition\") = %d\n",
-            gvPositionHandle);
+    LOGI("glGetAttribLocation(\"vPosition\") = %d\n", gvPositionHandle);
 
-    gVar.x[0] = glGetUniformLocation(gProgram, "balls[0].x");
+    gVar.balls[0] = glGetUniformLocation(gProgram, "balls[0]");
     checkGlError("glGetUniformLocation");
-    gVar.y[0] = glGetUniformLocation(gProgram, "balls[0].y");
+    gVar.balls[1] = glGetUniformLocation(gProgram, "balls[1]");
     checkGlError("glGetUniformLocation");
 
-    gVar.x[1] = glGetUniformLocation(gProgram, "balls[1].x");
-    checkGlError("glGetUniformLocation");
-    gVar.y[1] = glGetUniformLocation(gProgram, "balls[1].y");
-    checkGlError("glGetUniformLocation");
-            
+    LOGI("glGetUniformLocation(\"balls[0]\") = %d\n", gVar.balls[0]);
+    LOGI("glGetUniformLocation(\"balls[1]\") = %d\n", gVar.balls[1]);
+
+    gHalfDim[0] = w * 0.5;
+    gHalfDim[0] = h * 0.5;
     glViewport(0, 0, w, h);
     checkGlError("glViewport");
     return true;
 }
 
-const GLfloat gTriangleVertices[] = { 0.0f, 0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f };
-
+const GLfloat gQuadVertices[] = {
+    1.0f, 1.0f,
+    -1.0f, 1.0f,
+    -1.0f, -1.0f,
+    1.0f, -1.0f,
+};
 
 void renderFrame() {
-    static float grey;
-    grey += 0.01f;
-    if (grey > 1.0f) {
-        grey = 0.0f;
+    static float balls[2][2] = { {10, 10}, {20, 20} };
+    
+    for (int i=0; i<num_balls; ++i) {
+        for (int j=0; j<2; ++j) {
+            float dist = gHalfDim[j] - balls[i][j];
+            balls[i][j] += dist * 0.001;
+        }
     }
 
     glClearColor(0, 0, 0, 1.0f);
@@ -196,20 +190,16 @@ void renderFrame() {
     glUseProgram(gProgram);
     checkGlError("glUseProgram");
 
-    glUniform1f(gVar.x[0], grey);
-    checkGlError("glUniform1f");
-    glUniform1f(gVar.x[1], grey);
-    checkGlError("glUniform1f");
-    glUniform1f(gVar.y[0], grey);
-    checkGlError("glUniform1f");
-    glUniform1f(gVar.y[1], grey);
-    checkGlError("glUniform1f");
+    glUniform2fv(gVar.balls[0], 1, balls[0]);
+    checkGlError("glUniform2fv");
+    glUniform2fv(gVar.balls[1], 1, balls[1]);
+    checkGlError("glUniform2fv");
     
-    glVertexAttribPointer(gvPositionHandle, 2, GL_FLOAT, GL_FALSE, 0, gTriangleVertices);
+    glVertexAttribPointer(gvPositionHandle, 2, GL_FLOAT, GL_FALSE, 0, gQuadVertices);
     checkGlError("glVertexAttribPointer");
     glEnableVertexAttribArray(gvPositionHandle);
     checkGlError("glEnableVertexAttribArray");
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     checkGlError("glDrawArrays");
 }
 
