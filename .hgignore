@@ -1,0 +1,7 @@
+syntax: glob
+*~
+*.o
+*.class
+*.o.d
+*.so
+build.xml
