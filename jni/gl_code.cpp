@@ -52,28 +52,25 @@ static const char gVertexShader[] =
 #define GEN_SHADER(num_balls) \
 static const char gFragmentShader[] = \
     "precision mediump float;\n" \
-    "uniform vec2 dim;\n" \
+    "uniform vec2 dim, hdim;\n" \
     "uniform vec2 balls[" #num_balls "];\n" \
     "uniform vec3 colors[" #num_balls "];\n" \
     "float sqr(float x) { return x*x; }\n" \
-    "float hmod(float x, float m) {\n" \
-    "  return mod(x + 0.5*m, m) - 0.5*m;\n" \
-    "}\n" \
     "void main() {\n" \
     "  vec4 lol = vec4(0.0, 0.0, 0.0, 0.0);\n" \
     "  for (int i=0; i<" #num_balls "; ++i) {\n" \
     "    vec2 dist1 = balls[i] - gl_FragCoord.xy;\n" \
-    "    vec2 dist = vec2(hmod(dist1.x, dim.x), hmod(dist1.y, dim.y));\n" \
+    "    vec2 dist = mod(dist1 + hdim, dim) - hdim;\n" \
     "    float val = 1000.0 / (sqr(dist.x) + sqr(dist.y));\n" \
     "    lol += vec4(colors[i], 1.0) * val;\n" \
     "  }\n" \
-    "  float a = smoothstep(0.7, 1.0, lol.a) * 0.5 + 0.5;\n" \
+    "  float a = smoothstep(0.9, 1.0, lol.a);\n" \
     "  lol *= 1.0 / lol.a;\n" \
     "  gl_FragColor = vec4(lol.rgb * a, 1.0);\n" \
     "}\n";
 
-#define NUM_BALLS 3
-GEN_SHADER(3)
+#define NUM_BALLS 5
+GEN_SHADER(5)
 
 GLuint loadShader(GLenum shaderType, const char* pSource) {
     GLuint shader = glCreateShader(shaderType);
@@ -148,7 +145,7 @@ const unsigned num_balls = NUM_BALLS;
 struct loltype {
     GLuint colors[num_balls];
     GLuint balls[num_balls];
-    GLuint dim;
+    GLuint dim, hdim;
 } gVar;
 
 float colors_hue[num_balls];
@@ -157,9 +154,10 @@ float colors[num_balls][3];
 float balls[num_balls][2];
 float ballsv[num_balls][2];
 
-float fmod(float x, float m) {
-    while (x > m) x -= m;
-    while (x < 0.) x += m;
+// Always positive fmod
+float pfmod(double x, double m) {
+    x = fmod(x, m);
+    if (x < 0.) x += m;
     return x;
 }
 
@@ -192,7 +190,7 @@ void init_balls() {
         colors_huev[i] = 1.0 * (2.0 * rand() / (double)RAND_MAX - 1.0);
 
         for (int j=0; j<2; ++j) {
-            balls[i][j] = (2.0 * rand() / (double)RAND_MAX - 1.0) * 0.8 * gHalfDim[j] + gHalfDim[j];
+            balls[i][j] = (2.0 * rand() / (double)RAND_MAX - 1.0) * 0.7 * gHalfDim[j] + gHalfDim[j];
             ballsv[i][j] = 5.0 * (2.0 * rand() / (double)RAND_MAX - 1.0);
         }
     }
@@ -217,6 +215,10 @@ bool setupGraphics(int w, int h) {
     gVar.dim = glGetUniformLocation(gProgram, "dim");
     checkGlError("glGetUniformLocation");
     LOGI("glGetUniformLocation(\"dim\") = %d\n", gVar.dim);
+
+    gVar.hdim = glGetUniformLocation(gProgram, "hdim");
+    checkGlError("glGetUniformLocation");
+    LOGI("glGetUniformLocation(\"hdim\") = %d\n", gVar.hdim);
 
     for (int i=0; i<num_balls; ++i) {
         char buf[100];
@@ -250,14 +252,16 @@ const GLfloat gQuadVertices[] = {
 
 void renderFrame() {
     for (int i=0; i<num_balls; ++i) {
+        // Gravitate to other balls:
         for (int j=0; j<num_balls; ++j) {
             for (int k=0; k<2; ++k) {
-                float dist = fmod(balls[j][k] - balls[i][k], gDim[k]);
+                float dist = pfmod(balls[j][k] - balls[i][k], gDim[k]);
                 if (dist > gHalfDim[k]) dist -= gDim[k];
                 ballsv[i][k] += dist * 0.002;
             }
         }
 
+        // Gravitate to center:
         /*for (int k=0; k<2; ++k) {
             float dist = gHalfDim[k] - balls[i][k];
             ballsv[i][k] += dist * 0.002;
@@ -266,24 +270,20 @@ void renderFrame() {
         
     for (int i=0; i<num_balls; ++i) {
         for (int k=0; k<2; ++k) {
-            balls[i][k] = fmod(balls[i][k] + ballsv[i][k], gDim[k]);
+            balls[i][k] = pfmod(balls[i][k] + ballsv[i][k], gDim[k]);
         }
 
-        colors_hue[i] += colors_huev[i];
-        if (colors_hue[i] >= 360.) colors_hue[i] -= 360.;
-        else if (colors_hue[i] < 0.) colors_hue[i] += 360.;
+        colors_hue[i] = pfmod(colors_hue[i] + colors_huev[i], 360.);
         set_color(i, colors_hue[i], 0.6, 1.0);
     }
-
-    glClearColor(0, 0, 0, 1.0f);
-    checkGlError("glClearColor");
-    glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-    checkGlError("glClear");
 
     glUseProgram(gProgram);
     checkGlError("glUseProgram");
 
     glUniform2fv(gVar.dim, 1, gDim);
+    checkGlError("glUniform2fv");
+
+    glUniform2fv(gVar.hdim, 1, gHalfDim);
     checkGlError("glUniform2fv");
 
     for (int i=0; i<num_balls; ++i) {
