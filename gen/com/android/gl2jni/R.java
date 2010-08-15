@@ -10,9 +10,15 @@ package com.android.gl2jni;
 public final class R {
     public static final class attr {
     }
+    public static final class drawable {
+        public static final int icon=0x7f020000;
+    }
     public static final class string {
         /**  Simple strings. 
          */
-        public static final int gl2jni_activity=0x7f020000;
+        public static final int gl2jni_activity=0x7f030000;
+        /**  Simple strings. 
+         */
+        public static final int metaballs_activity=0x7f030001;
     }
 }

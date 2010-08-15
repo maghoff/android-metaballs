@@ -21,6 +21,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.android.gl2jni">
     <application
+            android:icon="@drawable/icon"
             android:label="@string/gl2jni_activity">
         <activity android:name="GL2JNIActivity"
                 android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
