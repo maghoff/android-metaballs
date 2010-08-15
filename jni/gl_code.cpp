@@ -52,23 +52,28 @@ static const char gVertexShader[] =
 #define GEN_SHADER(num_balls) \
 static const char gFragmentShader[] = \
     "precision mediump float;\n" \
+    "uniform vec2 dim;\n" \
     "uniform vec2 balls[" #num_balls "];\n" \
     "uniform vec3 colors[" #num_balls "];\n" \
     "float sqr(float x) { return x*x; }\n" \
+    "float hmod(float x, float m) {\n" \
+    "  return mod(x + 0.5*m, m) - 0.5*m;\n" \
+    "}\n" \
     "void main() {\n" \
     "  vec4 lol = vec4(0.0, 0.0, 0.0, 0.0);\n" \
     "  for (int i=0; i<" #num_balls "; ++i) {\n" \
-    "    vec2 dist = balls[i] - gl_FragCoord.xy;\n" \
+    "    vec2 dist1 = balls[i] - gl_FragCoord.xy;\n" \
+    "    vec2 dist = vec2(hmod(dist1.x, dim.x), hmod(dist1.y, dim.y));\n" \
     "    float val = 1000.0 / (sqr(dist.x) + sqr(dist.y));\n" \
     "    lol += vec4(colors[i], 1.0) * val;\n" \
     "  }\n" \
-    "  float a = smoothstep(0.7, 1.0, lol.a);\n" \
+    "  float a = smoothstep(0.7, 1.0, lol.a) * 0.5 + 0.5;\n" \
     "  lol *= 1.0 / lol.a;\n" \
     "  gl_FragColor = vec4(lol.rgb * a, 1.0);\n" \
     "}\n";
 
-#define NUM_BALLS 5
-GEN_SHADER(5)
+#define NUM_BALLS 3
+GEN_SHADER(3)
 
 GLuint loadShader(GLenum shaderType, const char* pSource) {
     GLuint shader = glCreateShader(shaderType);
@@ -143,6 +148,7 @@ const unsigned num_balls = NUM_BALLS;
 struct loltype {
     GLuint colors[num_balls];
     GLuint balls[num_balls];
+    GLuint dim;
 } gVar;
 
 float colors_hue[num_balls];
@@ -207,6 +213,10 @@ bool setupGraphics(int w, int h) {
     gvPositionHandle = glGetAttribLocation(gProgram, "vPosition");
     checkGlError("glGetAttribLocation");
     LOGI("glGetAttribLocation(\"vPosition\") = %d\n", gvPositionHandle);
+
+    gVar.dim = glGetUniformLocation(gProgram, "dim");
+    checkGlError("glGetUniformLocation");
+    LOGI("glGetUniformLocation(\"dim\") = %d\n", gVar.dim);
 
     for (int i=0; i<num_balls; ++i) {
         char buf[100];
@@ -273,9 +283,12 @@ void renderFrame() {
     glUseProgram(gProgram);
     checkGlError("glUseProgram");
 
+    glUniform2fv(gVar.dim, 1, gDim);
+    checkGlError("glUniform2fv");
+
     for (int i=0; i<num_balls; ++i) {
         glUniform3fv(gVar.colors[i], 1, colors[i]);
-        checkGlError("glUniform2fv");
+        checkGlError("glUniform3fv");
         glUniform2fv(gVar.balls[i], 1, balls[i]);
         checkGlError("glUniform2fv");
     }
@@ -286,6 +299,9 @@ void renderFrame() {
     checkGlError("glEnableVertexAttribArray");
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     checkGlError("glDrawArrays");
+
+    glUseProgram(0);
+    checkGlError("glUseProgram");
 }
 
 extern "C" {
