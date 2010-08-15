@@ -137,6 +137,7 @@ GLuint createProgram(const char* pVertexSource, const char* pFragmentSource) {
 GLuint gProgram;
 GLuint gvPositionHandle;
 float gHalfDim[2];
+float gDim[2];
 const unsigned num_balls = NUM_BALLS;
 
 struct loltype {
@@ -152,6 +153,7 @@ float ballsv[num_balls][2];
 
 float fmod(float x, float m) {
     while (x > m) x -= m;
+    while (x < 0.) x += m;
     return x;
 }
 
@@ -217,8 +219,10 @@ bool setupGraphics(int w, int h) {
         gVar.colors[i] = glGetUniformLocation(gProgram, buf);
         checkGlError("glGetUniformLocation");
         LOGI("glGetUniformLocation(\"colors[%i]\") = %d\n", i, gVar.colors[i]);
-}
+    }
 
+    gDim[0] = w;
+    gDim[1] = h;
     gHalfDim[0] = w * 0.5;
     gHalfDim[1] = h * 0.5;
     glViewport(0, 0, w, h);
@@ -236,19 +240,24 @@ const GLfloat gQuadVertices[] = {
 
 void renderFrame() {
     for (int i=0; i<num_balls; ++i) {
-        /*for (int j=0; j<num_balls; ++j) {
+        for (int j=0; j<num_balls; ++j) {
             for (int k=0; k<2; ++k) {
-                float dist = balls[j][k] - balls[i][k];
+                float dist = fmod(balls[j][k] - balls[i][k], gDim[k]);
+                if (dist > gHalfDim[k]) dist -= gDim[k];
                 ballsv[i][k] += dist * 0.002;
             }
-        }*/
-
-        for (int k=0; k<2; ++k) {
-            float dist = gHalfDim[k] - balls[i][k];
-            ballsv[i][k] += dist * 0.002;
         }
 
-        for (int k=0; k<2; ++k) balls[i][k] += ballsv[i][k];
+        /*for (int k=0; k<2; ++k) {
+            float dist = gHalfDim[k] - balls[i][k];
+            ballsv[i][k] += dist * 0.002;
+        }*/
+    }
+        
+    for (int i=0; i<num_balls; ++i) {
+        for (int k=0; k<2; ++k) {
+            balls[i][k] = fmod(balls[i][k] + ballsv[i][k], gDim[k]);
+        }
 
         colors_hue[i] += colors_huev[i];
         if (colors_hue[i] >= 360.) colors_hue[i] -= 360.;
