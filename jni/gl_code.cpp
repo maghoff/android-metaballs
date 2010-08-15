@@ -262,10 +262,10 @@ void renderFrame() {
         }
 
         // Gravitate to center:
-        /*for (int k=0; k<2; ++k) {
+        for (int k=0; k<2; ++k) {
             float dist = gHalfDim[k] - balls[i][k];
             ballsv[i][k] += dist * 0.002;
-        }*/
+        }
     }
         
     for (int i=0; i<num_balls; ++i) {
