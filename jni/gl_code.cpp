@@ -56,17 +56,19 @@ static const char gFragmentShader[] = \
     "uniform vec3 colors[" #num_balls "];\n" \
     "float sqr(float x) { return x*x; }\n" \
     "void main() {\n" \
-    "  vec3 lol = vec3(0.0, 0.0, 0.0);\n" \
+    "  vec4 lol = vec4(0.0, 0.0, 0.0, 0.0);\n" \
     "  for (int i=0; i<" #num_balls "; ++i) {\n" \
     "    vec2 dist = balls[i] - gl_FragCoord.xy;\n" \
     "    float val = 1000.0 / (sqr(dist.x) + sqr(dist.y));\n" \
-    "    lol += colors[i] * val;\n" \
+    "    lol += vec4(colors[i], 1.0) * val;\n" \
     "  }\n" \
-    "  gl_FragColor = vec4(lol, 1.0);\n" \
+    "  float a = smoothstep(0.7, 1.0, lol.a);\n" \
+    "  lol *= 1.0 / lol.a;\n" \
+    "  gl_FragColor = vec4(lol.rgb * a, 1.0);\n" \
     "}\n";
 
-#define NUM_BALLS 4
-GEN_SHADER(4)
+#define NUM_BALLS 5
+GEN_SHADER(5)
 
 GLuint loadShader(GLenum shaderType, const char* pSource) {
     GLuint shader = glCreateShader(shaderType);
@@ -143,6 +145,7 @@ struct loltype {
 } gVar;
 
 float colors_hue[num_balls];
+float colors_huev[num_balls];
 float colors[num_balls][3];
 float balls[num_balls][2];
 float ballsv[num_balls][2];
@@ -157,13 +160,20 @@ void set_color(int i, float h, float s, float v) {
     double hp = h / 60.;
     double x = c * (1.0 - fabs(fmod(hp, 2.0) - 1.0));
 
+    double r1, g1, b1;
+    
     if (false) { }
-    else if (hp < 1.) { colors[i][0] = c; colors[i][1] = x; colors[i][2] = 0; }
-    else if (hp < 2.) { colors[i][0] = x; colors[i][1] = c; colors[i][2] = 0; }
-    else if (hp < 3.) { colors[i][0] = 0; colors[i][1] = c; colors[i][2] = x; }
-    else if (hp < 4.) { colors[i][0] = 0; colors[i][1] = x; colors[i][2] = c; }
-    else if (hp < 5.) { colors[i][0] = x; colors[i][1] = 0; colors[i][2] = c; }
-    else              { colors[i][0] = c; colors[i][1] = 0; colors[i][2] = x; }
+    else if (hp < 1.) { r1 = c; g1 = x; b1 = 0; }
+    else if (hp < 2.) { r1 = x; g1 = c; b1 = 0; }
+    else if (hp < 3.) { r1 = 0; g1 = c; b1 = x; }
+    else if (hp < 4.) { r1 = 0; g1 = x; b1 = c; }
+    else if (hp < 5.) { r1 = x; g1 = 0; b1 = c; }
+    else              { r1 = c; g1 = 0; b1 = x; }
+
+    double m = v - c;
+    colors[i][0] = r1 + m;
+    colors[i][1] = g1 + m;
+    colors[i][2] = b1 + m;
 }
 
 void init_balls() {
@@ -171,10 +181,11 @@ void init_balls() {
 
     for (int i=0; i<num_balls; ++i) {
         colors_hue[i] = 360.0 * (rand() / (double)RAND_MAX);
+        colors_huev[i] = 1.0 * (2.0 * rand() / (double)RAND_MAX - 1.0);
 
         for (int j=0; j<2; ++j) {
             balls[i][j] = (2.0 * rand() / (double)RAND_MAX - 1.0) * 0.8 * gHalfDim[j] + gHalfDim[j];
-            ballsv[i][j] = 2.0 * rand() / (double)RAND_MAX - 1.0;
+            ballsv[i][j] = 5.0 * (2.0 * rand() / (double)RAND_MAX - 1.0);
         }
     }
 }
@@ -239,12 +250,10 @@ void renderFrame() {
 
         for (int k=0; k<2; ++k) balls[i][k] += ballsv[i][k];
 
-        /*colors_hue[i] += 1.0;
+        colors_hue[i] += colors_huev[i];
         if (colors_hue[i] >= 360.) colors_hue[i] -= 360.;
-        set_color(i, colors_hue[i], 0.2, 1.0);*/
-        colors[i][0] = 1.0;
-        colors[i][1] = 0.1;
-        colors[i][2] = 0.1;
+        else if (colors_hue[i] < 0.) colors_hue[i] += 360.;
+        set_color(i, colors_hue[i], 0.6, 1.0);
     }
 
     glClearColor(0, 0, 0, 1.0f);
